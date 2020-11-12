@@ -1,19 +1,19 @@
 int row[8][8] = {
-                  { 4,4,4,4,4,3,2,1 },
-                  { 4,4,4,4,4,4,4,4 },
-                  { 1,1,1,1,1,1,1,1 },
-                  { 2,2,2,2,2,2,2,2 },
-                  { 4,4,4,4,1,1,1,1 },
-                  { 3,3,3,3,2,2,2,2 },
-                  { 2,2,2,2,3,3,3,3 },
-                  { 1,1,1,1,4,4,4,4 }
+                  { 0,0,0,0,0,0,0,0 },
+                  { 0,0,0,0,0,0,0,0 },
+                  { 0,0,0,0,0,0,0,0 },
+                  { 0,0,0,0,0,0,0,0 },
+                  { 0,0,0,0,0,0,0,0 },
+                  { 0,0,0,0,0,0,0,0 },
+                  { 0,0,0,0,0,0,0,0 },
+                  { 0,0,0,0,0,0,0,0 }
                 };
 
-int delayTime = 300;
+int delayTime = 200;
 
 
 void setup() {
-
+  Serial.begin(38400);
   for (int i=2; i<10; i++){
     pinMode(i, OUTPUT);
   }
@@ -24,6 +24,13 @@ void setup() {
     digitalWrite(i+2, HIGH);
     digitalWrite(i+14, LOW);
   }
+  for (int i=24; i<32; i++){
+    pinMode(i, OUTPUT);
+    digitalWrite(i, HIGH);
+  }
+  for (int i=32; i<40; i++){
+    pinMode(i, INPUT);
+  }
 }
 
 void loop() {
@@ -32,6 +39,32 @@ void loop() {
     drawRow(i);
   }
 
+  for(int i=0; i<8; i++){
+    readCol(i);
+  }
+
+
+
+}
+
+void readCol(int colNum){
+  // enable column
+  digitalWrite(colNum+24, LOW);
+  // iterate through rows and turn off so they don't dummy read
+  for (int i=0; i<8; i++){
+    pinMode(i+32, OUTPUT);
+    digitalWrite(i+32, HIGH);
+  }
+  // iterate through rows and read
+  for (int i=0; i<8; i++){
+    pinMode(i+32,INPUT);
+    if(digitalRead(i+32) == LOW){
+      row[i][colNum] = 4;
+    }
+    pinMode(i+32, OUTPUT);
+  }
+  // disable column
+  digitalWrite(colNum+24, HIGH);
 }
 
 /*
@@ -78,10 +111,10 @@ void drawRow(int rowNum){
   delayMicroseconds(delayTime);
 
 
-//  // columns off
-//  for(int i=0; i<8; i++){
-//    digitalWrite(i + 2, HIGH);
-//  }
+  // columns off
+  for(int i=0; i<8; i++){
+    digitalWrite(i + 2, HIGH);
+  }
 
   // row off
   digitalWrite(rowNum+14, LOW);
