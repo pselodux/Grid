@@ -1,3 +1,13 @@
+/* 
+ * Row data:
+ * 4 = brightest
+ * 1 = dimmest
+ * 0 = off
+ * Note brightness 2/3 aren't very useful as they aren't much different
+ * to brightness 4. There's probably some way to make it better, but
+ * this is the best I can do at the moment. I'm not very experienced
+ * with PWM rates!
+*/
 int row[8][8] = {
                   { 0,0,0,0,0,0,0,0 },
                   { 0,0,0,0,0,0,0,0 },
@@ -14,39 +24,53 @@ int delayTime = 200;
 
 void setup() {
   Serial.begin(38400);
-  for (int i=2; i<10; i++){
-    pinMode(i, OUTPUT);
-  }
-  for (int i=14; i<22; i++){
-    pinMode(i, OUTPUT);
-  }
+
+  /*
+   * I suppose this section could be streamlined a bit / made easier for adaptation
+   * by defining the pinouts as variables outside the setup() function. Something
+   * to be added in the future..
+  */
+
+  // set up LED rows and columns
   for (int i=0; i<8; i++){
+    pinMode(i+2, OUTPUT);
+    pinMode(i+14, OUTPUT);
     digitalWrite(i+2, HIGH);
     digitalWrite(i+14, LOW);
   }
+
+  // set up button columns
   for (int i=24; i<32; i++){
     pinMode(i, OUTPUT);
     digitalWrite(i, HIGH);
   }
+
+  // set up button rows
   for (int i=32; i<40; i++){
     pinMode(i, INPUT);
   }
 }
 
 void loop() {
-
+  
+  // display active LEDs
   for(int i=0; i<8; i++){
     drawRow(i);
   }
-
+  
+  // read button presses
   for(int i=0; i<8; i++){
     readCol(i);
   }
-
-
-
+  
 }
 
+
+/*
+ * Read button presses. 
+ * 
+ * TODO: Send MIDI!
+ */
 void readCol(int colNum){
   // enable column
   digitalWrite(colNum+24, LOW);
@@ -83,8 +107,10 @@ void drawRow(int rowNum){
 
   // columns on
   for(int i=0; i<8; i++){
-    if(row[rowNum][i]){
+    if(row[rowNum][i] > 0){
       digitalWrite(i + 2, LOW);
+    } else {
+      digitalWrite(i + 2, HIGH);
     }
   }
   delayMicroseconds(delayTime);
@@ -112,20 +138,13 @@ void drawRow(int rowNum){
 
 
   // columns off
-  for(int i=0; i<8; i++){
-    digitalWrite(i + 2, HIGH);
-  }
+//  for(int i=0; i<8; i++){
+//    digitalWrite(i + 2, HIGH);
+//  }
 
   // row off
   digitalWrite(rowNum+14, LOW);
 }
-
-/*
- * Button input. Decoupled from LEDs, just send on/off signals via MIDI,
- * at 127 velocity.
- */
-
-
 
 /*
  * MIDI input. Each note corresponds to a row/column:
