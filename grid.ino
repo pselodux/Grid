@@ -22,7 +22,10 @@ bool canNoteOff[8][8];
 float timer[8][8];
 
 void setup() {
-//  Serial.begin(38400);
+  Serial.begin(38400);
+
+  usbMIDI.setHandleNoteOff(ReceiveMIDINoteOff);
+  usbMIDI.setHandleNoteOn(ReceiveMIDINoteOn);
 
   /*
    * I suppose this section could be streamlined a bit / made easier for adaptation
@@ -60,9 +63,14 @@ void setup() {
 }
 
 void loop() {
+  
   for(int i=0; i<8; i++){
+    // read MIDI input (in the for loop because it's faster)
+    usbMIDI.read(1);
+
     // display active LEDs
     drawRow(i);
+    
     // read button presses
     readCol(i);
   }
@@ -90,11 +98,13 @@ void readCol(int colNum){
     if(digitalRead(i+32) == LOW){
       // set debounce timer
       timer[i][colNum] = 1.0;
+      
       if(canNoteOn[i][colNum]){
-        // send note on here
+        // send note on
+        SendMIDINoteOn(colNum + i*8);
         
         // temporary lighting up just to show feedback
-        row[i][colNum] = 4;
+//        row[i][colNum] = 4;
         
         // debug stuff
 //        Serial.print("note on ");
@@ -120,10 +130,11 @@ void readCol(int colNum){
       timer[i][colNum] -= 0.2;
     }
     if (timer[i][colNum] < 0.6 && canNoteOff[i][colNum]){
-      // send note off here
-
+      // send note off
+      SendMIDINoteOff(colNum + i*8);
+        
       // temporary dimming of LED just to show feedback
-      row[i][colNum] = 0;
+//      row[i][colNum] = 0;
       
       // debug stuff
 //      Serial.print("note off ");
@@ -205,6 +216,18 @@ void drawRow(int rowNum){
 }
 
 /*
+ * MIDI output.
+ */
+
+void SendMIDINoteOn(int noteNum){
+  usbMIDI.sendNoteOn(noteNum, 127, 1);
+}
+
+void SendMIDINoteOff(int noteNum){
+  usbMIDI.sendNoteOff(noteNum, 127, 1);
+}
+
+/*
  * MIDI input. Each note corresponds to a row/column:
  * 0-7: Row 1
  * 8-15: Row 2
@@ -213,15 +236,30 @@ void drawRow(int rowNum){
  * 
  * .. and velocity corresponding to an intensity:
  * 0: off
- * 1-31: intensity 1
- * 32-63: intensity 2
- * 64-95: intensity 3
- * 96-127: intensity 4
+ * 1-63: intensity 1
+ * 64-127: intensity 4
+ * 
+ * (I haven't implemented other intensities yet, as 2-3 don't
+ * look different enough from 4).
  * 
  * Intensity is then added to the relevant row+column position 
  * when a note on is sent, and set to 0 when note off is sent.
  * 
- * Add an "all notes off" function?
+ * TODO: Add an "all notes off" function?
  */
 
- 
+void ReceiveMIDINoteOn(byte channel, byte note, byte velocity){
+  int noteCol = note % 8;
+  int noteRow = trunc(note / 8);
+  if(velocity > 63){
+    row[noteRow][noteCol] = 4;
+  } else {
+    row[noteRow][noteCol] = 1;
+  }
+}
+
+void ReceiveMIDINoteOff(byte channel, byte note, byte velocity){
+  int noteCol = note % 8;
+  int noteRow = trunc(note / 8);
+  row[noteRow][noteCol] = 0;
+} 
