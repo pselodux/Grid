@@ -8,19 +8,18 @@
  * this is the best I can do at the moment. I'm not very experienced
  * with PWM rates!
 */
-int row[8][8] = {
-                  { 0,0,0,0,0,0,0,0 },
-                  { 0,0,0,0,0,0,0,0 },
-                  { 0,0,0,0,0,0,0,0 },
-                  { 0,0,0,0,0,0,0,0 },
-                  { 0,0,0,0,0,0,0,0 },
-                  { 0,0,0,0,0,0,0,0 },
-                  { 0,0,0,0,0,0,0,0 },
-                  { 0,0,0,0,0,0,0,0 }
-                };
+int row[8][8];
 
+// delay between each refresh
 int delayTime = 200;
 
+// set these up so that holding the button only triggers the target
+// once, instead of millions of times..
+bool canNoteOn[8][8];
+bool canNoteOff[8][8];
+
+// debounce timer
+float timer[8][8];
 
 void setup() {
   Serial.begin(38400);
@@ -30,6 +29,15 @@ void setup() {
    * by defining the pinouts as variables outside the setup() function. Something
    * to be added in the future..
   */
+
+  for (int i=0; i<8; i++){
+    for (int j=0; j<8; j++){
+      canNoteOn[i][j] = true;
+      canNoteOff[i][j] = false;
+      timer[i][j] = 1.0;
+      row[i][j] = 0;
+    }
+  }
 
   // set up LED rows and columns
   for (int i=0; i<8; i++){
@@ -62,7 +70,6 @@ void loop() {
   for(int i=0; i<8; i++){
     readCol(i);
   }
-  
 }
 
 
@@ -82,10 +89,53 @@ void readCol(int colNum){
   // iterate through rows and read
   for (int i=0; i<8; i++){
     pinMode(i+32,INPUT);
-    if(digitalRead(i+32) == LOW){
+
+    if(digitalRead(i+32) == LOW && canNoteOn[i][colNum]){
+      // set debounce timer
+      timer[i][colNum] = 1.0;
+
+      // send note on here
+      
+      // temporary lighting up just to show feedback
       row[i][colNum] = 4;
+      
+      // debug stuff
+      // Serial.print("note on ");
+      // Serial.print(i);
+      // Serial.print(", ");
+      // Serial.println(colNum);
+      
+      canNoteOn[i][colNum] = false;
+      canNoteOff[i][colNum] = true;
+    }
+    if(digitalRead(i+32) == HIGH && canNoteOff[i][colNum]){
+      // send note off here
+
+      // temporary dimming of LED just to show feedback
+      row[i][colNum] = 0;
+      
+      // debug stuff
+      // Serial.print("note off ");
+      // Serial.print(i);
+      // Serial.print(", ");
+      // Serial.println(colNum);
+      
+      canNoteOff[i][colNum] = false;
     }
     pinMode(i+32, OUTPUT);
+
+    /* 
+     * VERY SIMPLE DEBOUNCE CODE
+     * 
+     * This starts a (very short) timer which allows note on when
+     * it hits zero. Button presses are ignored in between.
+     */
+    if (timer[i][colNum] > 0){
+      timer[i][colNum] -= 0.1;
+    }
+    if (timer[i][colNum] <= 0 && !canNoteOff[i][colNum]){
+      canNoteOn[i][colNum] = true;
+    }
   }
   // disable column
   digitalWrite(colNum+24, HIGH);
@@ -105,7 +155,9 @@ void drawRow(int rowNum){
   // row on
   digitalWrite(rowNum+14, HIGH);
 
-  // columns on
+  // columns on:
+  // First, check if any contain a value above zero,
+  // and turn them on if so.
   for(int i=0; i<8; i++){
     if(row[rowNum][i] > 0){
       digitalWrite(i + 2, LOW);
@@ -115,6 +167,8 @@ void drawRow(int rowNum){
   }
   delayMicroseconds(delayTime);
 
+  // After a delay, check for any with value 1, and
+  // turn them off.
   for(int i=0; i<8; i++){
     if(row[rowNum][i] < 2){
       digitalWrite(i + 2, HIGH);
@@ -122,13 +176,15 @@ void drawRow(int rowNum){
   }
   delayMicroseconds(delayTime);
 
+  // Another delay, turn off/keep off if 2
   for(int i=0; i<8; i++){
     if(row[rowNum][i] < 3){
       digitalWrite(i + 2, HIGH);
     }
   }
   delayMicroseconds(delayTime);
-
+  
+  // As above, but for 3.
   for(int i=0; i<8; i++){
     if(row[rowNum][i] < 4){
       digitalWrite(i + 2, HIGH);
@@ -136,11 +192,13 @@ void drawRow(int rowNum){
   }
   delayMicroseconds(delayTime);
 
+  // Value 4 will stay on until the next row is shown.
 
   // columns off
-//  for(int i=0; i<8; i++){
-//    digitalWrite(i + 2, HIGH);
-//  }
+  // (not needed anymore as it's dealt with in the >0 condition above)
+  // for(int i=0; i<8; i++){
+  //   digitalWrite(i + 2, HIGH);
+  // }
 
   // row off
   digitalWrite(rowNum+14, LOW);
