@@ -22,7 +22,7 @@ bool canNoteOff[8][8];
 float timer[8][8];
 
 void setup() {
-  Serial.begin(38400);
+//  Serial.begin(38400);
 
   /*
    * I suppose this section could be streamlined a bit / made easier for adaptation
@@ -60,16 +60,13 @@ void setup() {
 }
 
 void loop() {
-  
-  // display active LEDs
   for(int i=0; i<8; i++){
+    // display active LEDs
     drawRow(i);
-  }
-  
-  // read button presses
-  for(int i=0; i<8; i++){
+    // read button presses
     readCol(i);
   }
+
 }
 
 
@@ -83,55 +80,58 @@ void readCol(int colNum){
   digitalWrite(colNum+24, LOW);
   // iterate through rows and turn off so they don't dummy read
   for (int i=0; i<8; i++){
-    pinMode(i+32, OUTPUT);
+//    pinMode(i+32, OUTPUT);
     digitalWrite(i+32, HIGH);
   }
   // iterate through rows and read
   for (int i=0; i<8; i++){
     pinMode(i+32,INPUT);
 
-    if(digitalRead(i+32) == LOW && canNoteOn[i][colNum]){
+    if(digitalRead(i+32) == LOW){
       // set debounce timer
       timer[i][colNum] = 1.0;
+      if(canNoteOn[i][colNum]){
+        // send note on here
+        
+        // temporary lighting up just to show feedback
+        row[i][colNum] = 4;
+        
+        // debug stuff
+//        Serial.print("note on ");
+//        Serial.print(i);
+//        Serial.print(", ");
+//        Serial.println(colNum);
+        
+        canNoteOn[i][colNum] = false;
+        canNoteOff[i][colNum] = true;
+      }
 
-      // send note on here
-      
-      // temporary lighting up just to show feedback
-      row[i][colNum] = 4;
-      
-      // debug stuff
-      // Serial.print("note on ");
-      // Serial.print(i);
-      // Serial.print(", ");
-      // Serial.println(colNum);
-      
-      canNoteOn[i][colNum] = false;
-      canNoteOff[i][colNum] = true;
     }
-    if(digitalRead(i+32) == HIGH && canNoteOff[i][colNum]){
-      // send note off here
 
-      // temporary dimming of LED just to show feedback
-      row[i][colNum] = 0;
-      
-      // debug stuff
-      // Serial.print("note off ");
-      // Serial.print(i);
-      // Serial.print(", ");
-      // Serial.println(colNum);
-      
-      canNoteOff[i][colNum] = false;
-    }
-    pinMode(i+32, OUTPUT);
-
+    
     /* 
      * VERY SIMPLE DEBOUNCE CODE
      * 
      * This starts a (very short) timer which allows note on when
      * it hits zero. Button presses are ignored in between.
      */
-    if (timer[i][colNum] > 0){
-      timer[i][colNum] -= 0.1;
+     
+    if (timer[i][colNum] > 0 && !canNoteOn[i][colNum]){
+      timer[i][colNum] -= 0.2;
+    }
+    if (timer[i][colNum] < 0.6 && canNoteOff[i][colNum]){
+      // send note off here
+
+      // temporary dimming of LED just to show feedback
+      row[i][colNum] = 0;
+      
+      // debug stuff
+//      Serial.print("note off ");
+//      Serial.print(i);
+//      Serial.print(", ");
+//      Serial.println(colNum);
+      
+      canNoteOff[i][colNum] = false;
     }
     if (timer[i][colNum] <= 0 && !canNoteOff[i][colNum]){
       canNoteOn[i][colNum] = true;
